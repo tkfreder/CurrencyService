@@ -80,7 +80,7 @@ public class CurrencyService extends Observable implements Runnable {
 
 		executeXMLParser();
 
-		// only update if data has changed
+		// only notify if data has changed
 		if (!hasSameEntries(mExchangeRateList, mExchangeRateList_previous)) {
 
 			// Notify observers that data set has changed
