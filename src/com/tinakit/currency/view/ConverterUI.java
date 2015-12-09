@@ -44,6 +44,7 @@ import com.tinakit.currency.service.CurrencyService;
 public class ConverterUI implements Observer {
 
 	// CONSTANTS
+	private static final boolean DEBUG = false;
 	private static final String LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
 	private static final String REGEX_INTEGER_DECIMAL = "^\\d+(\\.\\d*)?|\\.\\d+$";
 	private static final String VALIDATION_ERROR = "Please enter an integer or decimal value.";
@@ -71,6 +72,10 @@ public class ConverterUI implements Observer {
 	private List<ExchangeRate> mExchangeRateList;
 	private CurrencyService mCurrencyService = null;
 
+	/**
+	 * Convert UI constructor
+	 */
+
 	public ConverterUI(List<ExchangeRate> exchangeRateList,
 			CurrencyService currencyService) {
 
@@ -78,20 +83,29 @@ public class ConverterUI implements Observer {
 		mCurrencyService = currencyService;
 	}
 
+	/**
+	 * update method for Observer interface
+	 */
+
 	public void update(Observable observable, Object arg) {
 
 		if (observable == mCurrencyService) {
 
 			// update Converter UI exchange rates
-			updateExchangeRateList((List<ExchangeRate>) arg);
+			setExchangeRateList((List<ExchangeRate>) arg);
 
-			JOptionPane.showMessageDialog(null,
-					"CurrencyConverter.update called");
+			if (DEBUG)
+				JOptionPane.showMessageDialog(null,
+						"CurrencyConverter.update called");
 		}
 
 	}
 
-	public void updateExchangeRateList(List<ExchangeRate> list) {
+	/**
+	 * updating ExchangeRateList called by update() method
+	 */
+
+	private void setExchangeRateList(List<ExchangeRate> list) {
 
 		mExchangeRateList = list;
 	}

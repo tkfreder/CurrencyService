@@ -33,7 +33,11 @@ public class CurrencyService extends Observable implements Runnable {
 	private static double[] EXCHANGE_RATE_LIST = { 0.9, 1.35, 0.65, 6.2, 6.75,
 			63.47, 15.93, 3.18, 3.75, 21814 };
 
+	// REST service
 	private static final String URL_YAHOO = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20yahoo.finance.xchange%20where%20pair%20in%20(%22USDEUR%22%2C%22USDAUD%22%2C%22USDGBP%22%2C%22USDCNY%22%2C%22USDDKK%22%2C%20%22USDINR%22%2C%20%22USDMXN%22%2C%20%22USDPEN%22%2C%20%22USDSAR%22%2C%20%22USDVND%22)&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys";
+
+	// update message
+	private static final String UPDATE_MESSAGE = "Exchange rates have been updated.";
 
 	// cache
 	public List<ExchangeRate> mExchangeRateList;
@@ -48,11 +52,9 @@ public class CurrencyService extends Observable implements Runnable {
 
 	}
 
-	public List<ExchangeRate> getExchangeRateList() {
-
-		return mExchangeRateList;
-	}
-
+	/**
+	 * initial values for exchange rates
+	 */
 	private void initializeList() {
 
 		for (int i = 0; i < CURRENCY_LIST.length; i++) {
@@ -63,10 +65,37 @@ public class CurrencyService extends Observable implements Runnable {
 
 	}
 
+	/**
+	 * allow clients to grab exchange rate list
+	 */
+	public List<ExchangeRate> getExchangeRateList() {
+
+		return mExchangeRateList;
+	}
+
+	/**
+	 * run method
+	 */
 	public void run() {
 
+		executeXMLParser();
+
+		// only update if data has changed
+		if (!hasSameEntries(mExchangeRateList, mExchangeRateList_previous)) {
+
+			// Notify observers that data set has changed
+			setChanged();
+			notifyObservers(mExchangeRateList);
+
+			// display dialog to indicate the update has been made
+			JOptionPane.showMessageDialog(null, UPDATE_MESSAGE);
+		}
+
+	}
+
+	private void executeXMLParser() {
+
 		XmlPullParser parser = null;
-		ExchangeRate exchangeRate = null;
 
 		try {
 			XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
@@ -138,18 +167,6 @@ public class CurrencyService extends Observable implements Runnable {
 				eventType = parser.next();
 			}
 
-			// if the list has changed since the last pull, notify observers
-			if (!hasSameEntries(mExchangeRateList, mExchangeRateList_previous)) {
-
-				// Notify observers that data set has changed
-				setChanged();
-				notifyObservers(mExchangeRateList);
-
-				// display dialog to indicate the update has been made
-				JOptionPane.showMessageDialog(null,
-						"exchange rates have been updated");
-			}
-
 		}
 
 		catch (ClientProtocolException e) {
@@ -205,6 +222,10 @@ public class CurrencyService extends Observable implements Runnable {
 					+ parser.getName() + ", expected " + firstElementName);
 		}
 	}
+
+	/**
+	 * helper function for xml parsing
+	 */
 
 	private boolean hasSameEntries(List<ExchangeRate> currentList,
 			List<ExchangeRate> previousList) {

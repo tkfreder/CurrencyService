@@ -86,13 +86,4 @@ public class CurrencyConverter {
 
 	}
 
-	private static void runCurrencyService() {
-
-		// use web service to update exchange rates
-		Runnable currencyJob = mCurrencyService;
-		Thread currencyThread = new Thread(currencyJob);
-		currencyThread.start();
-
-	}
-
 }
