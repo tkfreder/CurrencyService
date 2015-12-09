@@ -2,29 +2,33 @@ package com.tinakit.currency.model;
 
 public class ExchangeRate {
 
-	String countryName;
-	float exchangeRate;
+	private String mCountryName;
+	private double mExchangeRate;
 
-	/*
-	 * public ExchangeRate(String countryName, float exchangeRate) { super();
-	 * this.countryName = countryName; this.exchangeRate = exchangeRate;
-	 * 
-	 * }
-	 */
+	public ExchangeRate(String countryName, double exchangeRate) {
+
+		mCountryName = countryName;
+		mExchangeRate = exchangeRate;
+
+	}
+
 	public String getCountryName() {
-		return countryName;
+		return mCountryName;
 	}
 
 	public void setCountryName(String countryName) {
-		this.countryName = countryName;
+
+		mCountryName = countryName;
 	}
 
-	public float getExchangeRate() {
-		return exchangeRate;
+	public double getExchangeRate() {
+
+		return mExchangeRate;
 	}
 
-	public void setExchangeRate(float exchangeRate) {
-		this.exchangeRate = exchangeRate;
+	public void setExchangeRate(double exchangeRate) {
+
+		mExchangeRate = exchangeRate;
 	}
 
 }

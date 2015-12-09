@@ -6,6 +6,8 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Observable;
 
 import javax.swing.JOptionPane;
 
@@ -18,25 +20,47 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
-import com.tinakit.currency.CurrencyConverter;
 import com.tinakit.currency.model.ExchangeRate;
 
-public class CurrencyService implements Runnable {
+public class CurrencyService extends Observable implements Runnable {
 
-	protected static ArrayList<ExchangeRate> mConversionList = new ArrayList<ExchangeRate>();
+	private static final String[] CURRENCY_LIST = { "Euro",
+			"Australian Dollar", "British Pound", "Chinese Yuan",
+			"Danish Krone", "Indian Rupee", "Mexican Peso",
+			"Peruvian Nuevo Sol", "Saudi Riyal", "Vietnamese Dong" };
+
+	// placeholder exchange rates are based on US Dollar
+	private static double[] EXCHANGE_RATE_LIST = { 0.9, 1.35, 0.65, 6.2, 6.75,
+			63.47, 15.93, 3.18, 3.75, 21814 };
+
 	private static final String URL_YAHOO = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20yahoo.finance.xchange%20where%20pair%20in%20(%22USDEUR%22%2C%22USDAUD%22%2C%22USDGBP%22%2C%22USDCNY%22%2C%22USDDKK%22%2C%20%22USDINR%22%2C%20%22USDMXN%22%2C%20%22USDPEN%22%2C%20%22USDSAR%22%2C%20%22USDVND%22)&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys";
 
-	private ArrayList<ExchangeRate> mCurrencyList;
+	// cache
+	public List<ExchangeRate> mExchangeRateList;
+	private List<ExchangeRate> mExchangeRateList_previous;
 
-	private CurrencyConverter mConverter;
+	public CurrencyService() {
 
-	public CurrencyService(CurrencyConverter converter) {
-		mCurrencyList = new ArrayList<ExchangeRate>();
-		mConverter = converter;
+		mExchangeRateList = new ArrayList<>();
+		mExchangeRateList_previous = new ArrayList<>();
+
+		initializeList();
+
 	}
 
-	public ArrayList<ExchangeRate> getCurrencyList() {
-		return mCurrencyList;
+	public List<ExchangeRate> getExchangeRateList() {
+
+		return mExchangeRateList;
+	}
+
+	private void initializeList() {
+
+		for (int i = 0; i < CURRENCY_LIST.length; i++) {
+
+			mExchangeRateList.add(new ExchangeRate(CURRENCY_LIST[i],
+					EXCHANGE_RATE_LIST[i]));
+		}
+
 	}
 
 	public void run() {
@@ -49,8 +73,6 @@ public class CurrencyService implements Runnable {
 			factory.setNamespaceAware(true);
 			parser = factory.newPullParser();
 
-			// String fullUrl = buildUrl();
-
 			parser.setInput(new InputStreamReader(getUrlData(URL_YAHOO)));
 
 			beginDocument(parser, "query");
@@ -58,10 +80,13 @@ public class CurrencyService implements Runnable {
 			int eventType = parser.getEventType();
 
 			String countryName = "";
-			float exchange = 0.0f;
+			double exchange = 0.0;
 			String tagName = "";
 			// tracking array index
 			int currencyIndex = 0;
+
+			// flag to check whether there is at least one valid entry
+			boolean hasFirstElement = false;
 
 			while (eventType != XmlPullParser.END_DOCUMENT) {
 
@@ -70,30 +95,37 @@ public class CurrencyService implements Runnable {
 				case XmlPullParser.START_TAG:
 					if (parser.getName().equals("Name")) {
 						tagName = parser.getName();
-						exchangeRate = new ExchangeRate();
+
+						// if there is at least one valid entry
+						if (hasFirstElement == false) {
+							hasFirstElement = true;
+
+							// save current list as previous list
+							mExchangeRateList_previous = mExchangeRateList;
+
+							// clear out ExchangeRateList
+							mExchangeRateList = new ArrayList<>();
+						}
 					} else if (parser.getName().equals("Rate"))
 						tagName = parser.getName();
 					break;
 
 				case XmlPullParser.TEXT:
 					if (tagName.equals("Name")) {
-						countryName = parser.getText();
+						countryName = CURRENCY_LIST[currencyIndex];
 					} else if (tagName.equals("Rate")) {
 						exchange = Float.parseFloat(parser.getText());
 					}
 					break;
 
 				case XmlPullParser.END_TAG:
-					if (tagName.equals("Name")) {
-						// exchangeRate.setCountryName(countryName);
-						exchangeRate
-								.setCountryName(CurrencyConverter.CURRENCY_LIST[currencyIndex]);
-						countryName = "";
+					if (tagName.equals("Rate") && countryName != "") {
+						mExchangeRateList.add(new ExchangeRate(countryName,
+								exchange));
 
-					} else if (tagName.equals("Rate")
-							&& exchangeRate.getCountryName() != null) {
-						exchangeRate.setExchangeRate(exchange);
-						mCurrencyList.add(exchangeRate);
+						// clear out countryName and exchange rate
+						countryName = "";
+						exchange = 0.0;
 						currencyIndex++;
 					}
 					tagName = "";
@@ -106,18 +138,18 @@ public class CurrencyService implements Runnable {
 				eventType = parser.next();
 			}
 
-			// TODO: the update should be done from CurrencyConverter using
-			// Callable
-			// update the CurrencyConverter exchange rate values
-			// (conversionList)
-			for (int i = 0; i < mCurrencyList.size(); i++) {
-				mConverter.conversionList[i] = mCurrencyList.get(i)
-						.getExchangeRate();
+			// if the list has changed since the last pull, notify observers
+			if (!hasSameEntries(mExchangeRateList, mExchangeRateList_previous)) {
+
+				// Notify observers that data set has changed
+				setChanged();
+				notifyObservers(mExchangeRateList);
+
+				// display dialog to indicate the update has been made
+				JOptionPane.showMessageDialog(null,
+						"exchange rates have been updated");
 			}
 
-			// display dialog to indicate the update has been made
-			JOptionPane.showMessageDialog(null,
-					"exchange rates have been updated");
 		}
 
 		catch (ClientProtocolException e) {
@@ -172,6 +204,23 @@ public class CurrencyService implements Runnable {
 			throw new XmlPullParserException("Unexpected Start Tag Found "
 					+ parser.getName() + ", expected " + firstElementName);
 		}
+	}
+
+	private boolean hasSameEntries(List<ExchangeRate> currentList,
+			List<ExchangeRate> previousList) {
+
+		for (int i = 0; i < currentList.size(); i++) {
+
+			if (currentList.get(i).getCountryName()
+					.equals(previousList.get(i).getCountryName())) {
+
+				if (currentList.get(i).getExchangeRate() != previousList.get(i)
+						.getExchangeRate())
+					return false;
+			}
+		}
+
+		return true;
 	}
 
 }
